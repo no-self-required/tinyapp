@@ -57,6 +57,8 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
 
+// DELETE A URL
+
 app.post('/urls/:shortURL/delete', (req, res) => {
   //extract the id
   const urlId = req.params.shortURL;
@@ -65,6 +67,33 @@ app.post('/urls/:shortURL/delete', (req, res) => {
   //redirect to get quotes
   res.redirect('/urls');
 })
+
+//EDIT BUTTON DIRECTS TO EDIT URL PAGE
+
+// app.post('/urls/:id/edit', (req, res) => {
+//   const urlId = req.params.id;
+
+//   // const templateVars = {longURL: urlDatabase[urlId]}
+
+//   // res.render('urls_show', templateVars)
+
+//   res.redirect(`/urls/${urlId}`);
+// })
+
+//UPDATE URL IN DATABASE
+app.post('/urls/:shortURL', (req, res) => {
+  //extract id from params
+  const urlId = req.params.shortURL;
+
+  //extract new longURL value from the form => req.body
+  const longURL = req.body.longURL
+
+  //update longURL 
+  urlDatabase[urlId] = longURL
+
+  res.redirect(`/urls/${urlId}`);
+})
+
 
 //function that generates random shortURL id
 function generateRandomString() {
