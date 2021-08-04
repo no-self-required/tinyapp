@@ -3,13 +3,12 @@ const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
 
+let cookie_parser=require('cookie-parser')
+
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
-
+app.use(cookie_parser());
 app.set("view engine", "ejs");
-
-
-
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
@@ -21,16 +20,29 @@ app.get("/", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  const templateVars = { 
+    username: req.cookies["username"],
+  };
+  res.render("urls_new", templateVars);
 });
 
 app.get('/urls', (req, res) => {
-  const templateVars = { urls: urlDatabase };
+  console.log(req.cookies.username)
+  const templateVars = { 
+    username: req.cookies["username"],
+    urls: urlDatabase 
+  };
   res.render('urls_index', templateVars);
 });
 
+//create url redirects to urls?
+
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  const templateVars = {
+    username: req.cookies["username"], 
+    shortURL: req.params.shortURL, 
+    longURL: urlDatabase[req.params.shortURL] 
+  };
   res.render("urls_show", templateVars);
 });
 
@@ -68,19 +80,8 @@ app.post('/urls/:shortURL/delete', (req, res) => {
   res.redirect('/urls');
 })
 
-//EDIT BUTTON DIRECTS TO EDIT URL PAGE
-
-// app.post('/urls/:id/edit', (req, res) => {
-//   const urlId = req.params.id;
-
-//   // const templateVars = {longURL: urlDatabase[urlId]}
-
-//   // res.render('urls_show', templateVars)
-
-//   res.redirect(`/urls/${urlId}`);
-// })
-
 //UPDATE URL IN DATABASE
+
 app.post('/urls/:shortURL', (req, res) => {
   //extract id from params
   const urlId = req.params.shortURL;
@@ -91,8 +92,29 @@ app.post('/urls/:shortURL', (req, res) => {
   //update longURL 
   urlDatabase[urlId] = longURL
 
+  //redirects to the same page with updated url
   res.redirect(`/urls/${urlId}`);
 })
+
+app.post('/login', (req, res) => {
+  res.cookie('username', req.body.username);
+  res.redirect('/urls');
+})
+
+app.post('/logout', (req, res) => {
+  res.clearCookie('username');
+  res.redirect('/urls');
+})
+
+// app.post('/login', (req, res) => {
+//   const templateVars = {
+//     username: req.cookies["username"],
+//     // ... any other vars
+//   };
+//   res.render("urls_index", templateVars);
+//   res.render("urls_new", templateVars);
+//   res.render("urls_show", templateVars);
+// })
 
 
 //function that generates random shortURL id
@@ -100,7 +122,6 @@ function generateRandomString() {
   let generated = [];
   let stringy = 'abcdefghijklmnopqrtuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let joined = stringy.split('')
-  // console.log(random)
   for (let i = 0; i < 6; i++) {
     let random = joined[Math.floor(Math.random() * joined.length)];
     generated.push(random)
