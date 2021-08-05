@@ -3,7 +3,7 @@ const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookie_parser=require('cookie-parser')
-const {createNewUser} = require("./helpers/helpers")
+const {createNewUser, findUser, findUser2} = require("./helpers/helpers")
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookie_parser());
@@ -28,9 +28,6 @@ const userDatabase = {
   }
 };
 
-// const tempUser = userDatabase.user1randomid
-// console.log('tempUser:', tempUser)
-
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -43,7 +40,6 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get('/urls', (req, res) => {
-  // console.log(req.cookies.username)
   const templateVars = { 
     user: userDatabase[req.cookies.user_id],
     urls: urlDatabase 
@@ -51,15 +47,12 @@ app.get('/urls', (req, res) => {
   res.render('urls_index', templateVars);
 });
 
-//create url redirects to urls?
-
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = {
     user: user ? user : null,
     shortURL: req.params.shortURL, 
     longURL: urlDatabase[req.params.shortURL] 
   };
-  console.log(templateVars)
   res.render("urls_show", templateVars);
 });
 
@@ -113,9 +106,13 @@ app.post('/urls/:shortURL', (req, res) => {
   res.redirect(`/urls/${urlId}`);
 })
 
-app.post('/login', (req, res) => {
-  res.cookie('user_id', req.body.user_id);
-  res.redirect('/urls');
+app.post('/login', (req, res) => { 
+  let userID = findUser2(userDatabase, req.body.email, req.body.password)
+  if (findUser2(userDatabase, req.body.email, req.body.password)) {
+    res.cookie('user_id', userID.id);
+    res.redirect('/urls');
+  }
+  res.status(403).send("Invalid email or password");
 })
 
 app.post('/logout', (req, res) => {
@@ -124,7 +121,6 @@ app.post('/logout', (req, res) => {
 })
 
 app.get('/register', (req, res) => {
-  //return register template
   const templateVars = {
     user: userDatabase[req.cookies.user_id]
   }
@@ -132,6 +128,12 @@ app.get('/register', (req, res) => {
 })
 
 app.post('/register', (req, res) => {
+  if (req.body.email === '' || req.body.password === '') {
+    res.status(400).send("Cannot leave email or password empty");
+  }
+  else if (findUser(userDatabase, req.body.email)) {
+    res.status(400).send("Email in use");
+  }
   const userObject = {
     id: generateRandomString(),
     email: req.body.email,
@@ -141,11 +143,21 @@ app.post('/register', (req, res) => {
   const user = createNewUser(userDatabase, userObject)
   if (user) {
     res.cookie("user_id", user.id)
-    console.log(userObject)
     res.redirect('/urls')
   }
+
   // res.redirect("/register")
 })
+
+app.get('/login', (req, res) => {
+  const templateVars = {
+    user: userDatabase[req.cookies.user_id],
+    email: req.body.email,
+    password: req.body.password
+  }
+  res.render('login', templateVars)
+})
+
 
 //function that generates random shortURL id
 function generateRandomString() {
@@ -160,3 +172,5 @@ function generateRandomString() {
 }
 
 
+//need to make log in and register button disappear after log in
+//Style fonts/buttons and format login/register templates
