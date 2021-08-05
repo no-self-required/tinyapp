@@ -17,7 +17,7 @@ const findUser = (userDatabase, email) => {
   return false
 }
 
-const findUser2 = (userDatabase, email, password) => {
+const checkLogin = (userDatabase, email, password) => {
   // const user = userDatabase[email] ? userDatabase[email] : {}
   for (let user in userDatabase) {
     if (userDatabase[user].email === email && userDatabase[user].password === password) {
@@ -27,4 +27,16 @@ const findUser2 = (userDatabase, email, password) => {
   return false
 }
 
-module.exports = { createNewUser, findUser, findUser2 }
+//id = cookie id?
+const urlsForUser = (urlDatabase, id) => {
+  let urlObjects = {}
+  for (let urls in urlDatabase) {
+    if (urlDatabase[urls].userID === id) {
+      urlObjects[urls] = urlDatabase[urls]
+    }
+  }
+  return urlObjects
+}
+
+module.exports = { createNewUser, findUser, checkLogin, urlsForUser }
+
