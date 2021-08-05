@@ -4,6 +4,7 @@ const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookie_parser=require('cookie-parser')
 const {createNewUser, findUser, checkLogin, urlsForUser} = require("./helpers/helpers")
+const bcrypt = require('bcrypt');
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookie_parser());
@@ -13,25 +14,23 @@ app.set("view engine", "ejs");
 const urlDatabase = {
   b2xVn2: {
     longURL: "http://www.lighthouselabs.ca",
-    userID: "user1randomid"
+    userID: "rT4yp1"
   }, 
   '9sm5xK': {
     longURL: "http://www.google.com",
-    userID: "user1randomid"
+    userID: "rT4yp1"
   } 
 };
 
+const pass1 = "yoyoyo";
+const hash = bcrypt.hashSync(pass1, 10);
+
 const userDatabase = {
-  "user1randomid": {
-    id: "user1randomid",
+  "rT4yp1": {
+    id: "rT4yp1",
     email: "user1@example.com",
-    password: "yoyoyo"
+    hashedPw: hash
   },
-  "user2randomid": {
-    id: "user2randomid",
-    email: "user2@example.com",
-    password: "y0y0y0y0"
-  }
 };
 
 // app.get("/", (req, res) => {
@@ -67,6 +66,8 @@ app.get('/urls', (req, res) => {
   res.render('urls_index', templateVars);
 });
 
+// If the user is logged in but does not own the URL with the given id the app should return HTML with a relevant error message.
+//^^ must implement still 
 app.post("/urls", (req, res) => {
   //^^^
   //"Only Registered Users Can Shorten URLs" curl command
@@ -162,10 +163,15 @@ app.post('/urls/:shortURL', (req, res) => {
 })
 
 app.post('/login', (req, res) => { 
-  let userID = checkLogin(userDatabase, req.body.email, req.body.password)
-  if (checkLogin(userDatabase, req.body.email, req.body.password)) {
-    res.cookie('user_id', userID.id);
-    res.cookie('user_email', userID.email);
+  const email = req.body.email;
+  const password = req.body.password
+
+  let userIDobj = findUser(userDatabase, email);
+  let id = userIDobj.id
+
+  let pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
+  if (pwCheck) {
+    res.cookie('user_id', id);
     res.redirect('/urls');
   }
   res.status(403).send("Invalid email or password");
@@ -173,6 +179,7 @@ app.post('/login', (req, res) => {
 
 app.post('/logout', (req, res) => {
   res.clearCookie('user_id');
+  console.log('db: ', userDatabase)
   res.redirect('/urls');
 })
 
@@ -190,15 +197,22 @@ app.post('/register', (req, res) => {
   else if (findUser(userDatabase, req.body.email)) {
     res.status(400).send("Email in use");
   }
+
+  const salt = bcrypt.genSaltSync(10)
+  const hash = bcrypt.hashSync(req.body.password, salt);
+
   const userObject = {
     id: generateRandomString(),
     email: req.body.email,
-    password: req.body.password
+    hashedPw: hash
   }
 
-  const user = createNewUser(userDatabase, userObject)
-  if (user) {
-    res.cookie("user_id", user.id)
+  const userObj = createNewUser(userDatabase, userObject)
+  let userID = userObj.id;
+
+  if (userObj) {
+    userDatabase[userID] = userObj
+    res.cookie("user_id", userID)
     res.redirect('/urls')
   }
   res.redirect("/register")
@@ -230,3 +244,4 @@ function generateRandomString() {
 //need to make log in and register button disappear after log in
 //Style fonts/buttons and format login/register templates
 //Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client. After login
+// LINE 70
