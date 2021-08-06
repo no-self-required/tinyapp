@@ -2,12 +2,20 @@ const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
-const cookie_parser=require('cookie-parser')
-const {createNewUser, findUser, checkLogin, urlsForUser} = require("./helpers/helpers")
+
+// const cookie_parser=require('cookie-parser')
+const cookieSession = require('cookie-session')
+
+const {createNewUser, findUser, urlsForUser} = require("./helpers/helpers")
 const bcrypt = require('bcrypt');
 
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookie_parser());
+// app.use(cookie_parser());
+
+app.use(cookieSession({
+  name: 'session',
+  keys: ['b33pb00pb0p'],
+}))
 
 app.set("view engine", "ejs");
 
@@ -40,19 +48,19 @@ const userDatabase = {
 //check if user_id cookies
 
 app.get("/urls/new", (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   
   if(!userCookie) {
     res.redirect('/login') //res status send (<html>) fix later instead of noLogin ejs page
   }
   const templateVars = { 
-    user: userDatabase[req.cookies.user_id],
+    user: userDatabase[req.session.user_id],
   };
   res.render("urls_new", templateVars);
 });
 
 app.get('/urls', (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
   }
@@ -71,7 +79,8 @@ app.get('/urls', (req, res) => {
 app.post("/urls", (req, res) => {
   //^^^
   //"Only Registered Users Can Shorten URLs" curl command
-  let idCheck = findUser(userDatabase, req.cookies.user_email)
+
+  let idCheck = findUser(userDatabase, req.session.user_email)
   if (idCheck === false) {
     res.status(403).send("You must log in to access");
   }
@@ -79,20 +88,20 @@ app.post("/urls", (req, res) => {
   // **** //
   urlDatabase[shortUrl] = {
     longURL: req.body.longURL,
-    userID: req.cookies["user_id"]
+    userID: req.session["user_id"]
   }
   res.redirect(`/urls/${shortUrl}`);
 });
 
 app.get("/noLogin", (req, res) => {
   const templateVars = {
-    user: userDatabase[req.cookies.user_id],
+    user: userDatabase[req.session.user_id],
   };
   res.render('noLogin', templateVars)
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
   }
@@ -101,7 +110,7 @@ app.get("/urls/:shortURL", (req, res) => {
     res.status(404).send("This short URL does not exist");
   }
   const templateVars = {
-    user: userDatabase[req.cookies.user_id],
+    user: userDatabase[req.session.user_id],
     shortURL: shortURL, 
     longURL: urlDatabase[shortURL].longURL
   };
@@ -117,7 +126,7 @@ app.get("/urls.json", (req, res) => {
 });
 
 app.get("/u/:shortURL", (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
   }
@@ -131,7 +140,7 @@ app.get("/u/:shortURL", (req, res) => {
 // DELETE A URL
 // >>>>>>   how to check if shortURL is owned by loggin in user //if urlId = ???
 app.post('/urls/:shortURL/delete', (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   //extract the id
   const urlId = req.params.shortURL;
   if (urlDatabase[urlId].userID === userCookie) {
@@ -145,7 +154,7 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 //UPDATE URL IN DATABASE
 //>>>>>>
 app.post('/urls/:shortURL', (req, res) => {
-  let userCookie = req.cookies["user_id"]
+  let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
   }
@@ -167,25 +176,31 @@ app.post('/login', (req, res) => {
   const password = req.body.password
 
   let userIDobj = findUser(userDatabase, email);
+  if (!userIDobj) {
+    res.status(403).send("Invalid email or password");
+  }
   let id = userIDobj.id
-
+  let reqEmail = userIDobj.email
+  console.log('CHECK: ', userDatabase[id].hashedPw)
   let pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
   if (pwCheck) {
-    res.cookie('user_id', id);
+    // res.cookie('user_id', id);
+    req.session.user_id = id;
+    req.session.user_email = reqEmail
     res.redirect('/urls');
   }
   res.status(403).send("Invalid email or password");
+  return
 })
 
 app.post('/logout', (req, res) => {
-  res.clearCookie('user_id');
-  console.log('db: ', userDatabase)
+  req.session = null;
   res.redirect('/urls');
 })
 
 app.get('/register', (req, res) => {
   const templateVars = {
-    user: userDatabase[req.cookies.user_id]
+    user: userDatabase[req.session.user_id]
   }
   res.render('register', templateVars)
 })
@@ -212,21 +227,21 @@ app.post('/register', (req, res) => {
 
   if (userObj) {
     userDatabase[userID] = userObj
-    res.cookie("user_id", userID)
+    req.session.user_id = userID;
     res.redirect('/urls')
   }
   res.redirect("/register")
 })
 
+//password? should be hashedPw??
 app.get('/login', (req, res) => {
   const templateVars = {
-    user: userDatabase[req.cookies.user_id],
+    user: userDatabase[req.session.user_id],
     email: req.body.email,
     password: req.body.password
   }
   res.render('login', templateVars)
 })
-
 
 //function that generates random shortURL id
 function generateRandomString() {
@@ -245,3 +260,7 @@ function generateRandomString() {
 //Style fonts/buttons and format login/register templates
 //Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client. After login
 // LINE 70
+
+
+//Create new url: catch edge cases like: empty url, no http://
+//ShortURL hyperlink: should go to longurl site?
