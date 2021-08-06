@@ -81,7 +81,7 @@ app.post("/urls", (req, res) => {
   const idCheck = findUser(userDatabase, email);
   const shortUrl = generateRandomString();
   
-  if (req.body.longURL === '' || !(req.body.longURL).includes('.com')) {
+  if (req.body.longURL === '') {
     return res.send("Please enter a valid URL");
   } else if (!(req.body.longURL).includes('http')) {
     req.body.longURL = `http://${req.body.longURL}`;
