@@ -3,13 +3,16 @@ const app = express();
 const PORT = 8080;
 const bodyParser = require("body-parser");
 const cookieSession = require('cookie-session')
+const methodOverride = require('method-override');
 const bcrypt = require('bcrypt');
+const salt = bcrypt.genSaltSync(10)
 const {createNewUser, findUser, urlsForUser} = require("./helpers/helpers")
 
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(methodOverride('_method'));
 app.use(cookieSession({
   name: 'session',
-  keys: ['b33pb00pb0p'],
+  keys: ['b33pb00pb0p', 'sd4!1pd98xz7'],
 }))
 
 app.set("view engine", "ejs");
@@ -25,14 +28,11 @@ const urlDatabase = {
   } 
 };
 
-const pass1 = "yoyoyo";
-const hash = bcrypt.hashSync(pass1, 10);
-//should database be empty?
 const userDatabase = {
   "rT4yp1": {
     id: "rT4yp1",
     email: "user1@example.com",
-    hashedPw: hash
+    hashedPw: bcrypt.hashSync("yoyoyo", 10)
   },
 };
 
@@ -40,11 +40,15 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
+app.get("/", (req, res) => {
+  res.send("Hello!");
+});
+
 app.get("/urls/new", (req, res) => {
   let userCookie = req.session["user_id"]
   
   if(!userCookie) {
-    res.redirect('/login') //res status send (<html>) fix later instead of noLogin ejs page
+    res.redirect('/login')
     return
   }
   const templateVars = { 
@@ -56,8 +60,7 @@ app.get("/urls/new", (req, res) => {
 app.get('/urls', (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
-    res.redirect('/noLogin')
-    return
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> Login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
   let urlsToShow = urlsForUser(urlDatabase, userCookie)
   const templateVars = { 
@@ -93,19 +96,10 @@ app.post("/urls", (req, res) => {
   return
 });
 
-//should I remove?
-app.get("/noLogin", (req, res) => {
-  const templateVars = {
-    user: userDatabase[req.session.user_id],
-  };
-  res.render('noLogin', templateVars)
-  return
-});
-
 app.get("/urls/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
-    res.redirect('/noLogin')
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
@@ -120,16 +114,10 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-//relevant?
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
-
 app.get("/u/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
-    res.redirect('/noLogin')
-    return
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
@@ -157,7 +145,7 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 app.post('/urls/:shortURL', (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
-    res.redirect('/noLogin')
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
   //extract id from params
   const urlId = req.params.shortURL;
@@ -192,7 +180,7 @@ app.post('/login', (req, res) => {
     res.redirect('/urls');
     return
   }
-  res.status(403).send("Invalid email or password");
+  res.send("Invalid email or password").sendStatus(403)
 })
 
 app.get('/login', (req, res) => {
@@ -232,7 +220,6 @@ app.post('/register', (req, res) => {
     return
   }
 
-  const salt = bcrypt.genSaltSync(10)
   const hash = bcrypt.hashSync(req.body.password, salt);
 
   const userObject = {
@@ -264,11 +251,6 @@ function generateRandomString() {
   }
   return generated.join('')
 }
-
-
-//need to make log in and register button disappear after log in
-
-//noLogin  ejs? to remove or not?
 
 //GET /urls/:id
 //if user is logged it but does not own the URL with the given ID: returns HTML with a relevant error message
