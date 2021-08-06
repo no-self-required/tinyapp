@@ -41,59 +41,54 @@ app.listen(PORT, () => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  let userCookie = req.session["user_id"]
+  if(!userCookie) {
+    return res.redirect('/login')
+  }
+  res.redirect('/urls')
 });
 
 app.get("/urls/new", (req, res) => {
-  let userCookie = req.session["user_id"]
-  
+  let userCookie = req.session["user_id"] 
   if(!userCookie) {
-    res.redirect('/login')
-    return
+    return res.redirect('/login')
   }
   const templateVars = { 
     user: userDatabase[req.session.user_id],
   };
-  res.render("urls_new", templateVars);
 });
 
 app.get('/urls', (req, res) => {
   let userCookie = req.session["user_id"]
-  if(!userCookie) {
-    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> Login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
-  }
   let urlsToShow = urlsForUser(urlDatabase, userCookie)
   const templateVars = { 
     user: userDatabase[userCookie],
-    urls: urlsToShow
+    urls: urlsToShow,
+    error: 'Please log in to view associated URLs'
   };
   res.render('urls_index', templateVars);
 });
 
-// If the user is logged in but does not own the URL with the given id the app should return HTML with a relevant error message.
-//^^ must implement still 
-
 app.post("/urls", (req, res) => {
-  if (req.body.longURL === '') {
-    res.send("Please enter a valid URL")
-  }
+  const  userCookie = req.session["user_id"]
+  const email = userDatabase[userCookie].email
+  const  idCheck = findUser(userDatabase, email)
 
-  if (!(req.body.longURL).includes('http')) {
-    req.body.longURL = 'http://' + req.body.longURL;
+  if (req.body.longURL === '' || !(req.body.longURL).includes('.com')) {
+    return res.send("Please enter a valid URL")
   }
-
-  let idCheck = findUser(userDatabase, req.session.user_email)
-  if (idCheck === false) {
-    res.status(403).send("You must log in to access");
-    return
+  else if (!(req.body.longURL).includes('http')) {
+    req.body.longURL = `http://${req.body.longURL}`;
+  }
+  else if (idCheck === false) {
+    return res.status(403).send("You must log in to access");
   }
   const shortUrl = generateRandomString()
   urlDatabase[shortUrl] = {
     longURL: req.body.longURL,
     userID: req.session["user_id"]
   }
-  res.redirect(`/urls/${shortUrl}`);
-  return
+  return res.redirect(`/urls/${shortUrl}`);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
@@ -101,11 +96,16 @@ app.get("/urls/:shortURL", (req, res) => {
   if(!userCookie) {
     return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
+
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
-    res.status(404).send("This short URL does not exist");
-    return
+    return res.status(404).send("This short URL does not exist"); 
   }
+  else if(urlDatabase[shortURL].userID !== userCookie) {
+    return res.status(403).send("Permission denied")
+  }
+
+
   const templateVars = {
     user: userDatabase[req.session.user_id],
     shortURL: shortURL, 
@@ -121,7 +121,7 @@ app.get("/u/:shortURL", (req, res) => {
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
-    res.status(404).send("This short URL does not exist");
+    return res.status(404).send("This short URL does not exist");
   }
   res.redirect(urlDatabase[shortURL]);
 });
@@ -132,7 +132,10 @@ app.post('/urls/:shortURL/delete', (req, res) => {
   let userCookie = req.session["user_id"]
   //extract the id
   const urlId = req.params.shortURL;
-  if (urlDatabase[urlId].userID === userCookie) {
+  if(urlDatabase[urlId].userID !== userCookie) {
+    return res.status(403).send("Permission denied")
+  }
+  else if (urlDatabase[urlId].userID === userCookie) {
     //delete it from database
     delete urlDatabase[urlId];
     //redirect to get quotes
@@ -147,13 +150,21 @@ app.post('/urls/:shortURL', (req, res) => {
   if(!userCookie) {
     return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
   }
+  else if (req.body.longURL === '' || !(req.body.longURL).includes('.com')) {
+    return res.send("Please enter a valid URL")
+  }
+  else if (!(req.body.longURL).includes('http')) {
+    req.body.longURL = `http://${req.body.longURL}`;
+  }
   //extract id from params
   const urlId = req.params.shortURL;
   //extract new longURL value from the form => req.body
   const longURL = req.body.longURL
 
-  if (urlDatabase[urlId].userID === userCookie) {
-    //update longURL 
+  if(urlDatabase[urlId].userID !== userCookie) {
+    return res.status(403).send("Permission denied")
+  }
+  else if (urlDatabase[urlId].userID === userCookie) {
     urlDatabase[urlId].longURL = longURL
   }
   //redirects to the same page with updated url
@@ -166,8 +177,7 @@ app.post('/login', (req, res) => {
 
   let userIDobj = findUser(userDatabase, email);
   if (userIDobj === false || !password) {
-    res.status(403).send("Invalid email or password");
-    return
+    return res.status(403).send("Invalid email or password");   
   }
 
   let id = userIDobj.id
@@ -180,10 +190,14 @@ app.post('/login', (req, res) => {
     res.redirect('/urls');
     return
   }
-  res.send("Invalid email or password").sendStatus(403)
+  return res.status(403).send("Invalid email or password");
 })
 
 app.get('/login', (req, res) => {
+  let userCookie = req.session["user_id"]
+  if (userCookie) {
+    return res.redirect('/urls');
+  }
   const templateVars = {
     user: userDatabase[req.session.user_id],
     email: req.body.email,
@@ -212,12 +226,10 @@ app.get('/register', (req, res) => {
 
 app.post('/register', (req, res) => {
   if (req.body.email === '' || req.body.password === '') {
-    res.status(400).send("Cannot leave email or password empty");
-    return
+    return res.status(400).send("Cannot leave email or password empty");   
   }
   else if (findUser(userDatabase, req.body.email)) {
-    res.status(400).send("Email in use");
-    return
+    return res.status(400).send("Email in use");  
   }
 
   const hash = bcrypt.hashSync(req.body.password, salt);
@@ -233,9 +245,9 @@ app.post('/register', (req, res) => {
 
   if (userObj) {
     userDatabase[userID] = userObj
+    console.log(userDatabase)
     req.session.user_id = userID;
-    res.redirect('/urls')
-    return
+    return res.redirect('/urls')
   }
   res.redirect("/register")
 })
@@ -252,7 +264,16 @@ function generateRandomString() {
   return generated.join('')
 }
 
-//GET /urls/:id
-//if user is logged it but does not own the URL with the given ID: returns HTML with a relevant error message
+//need site header to be visible if user is not logged in.
+// LINE 68
+// let userCookie = req.session["user_id"]
+// if(!userCookie) {
+//   return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> Login </a> or <a href='/register'>register</a> to view associated URLs</body></html")
+// }
+//IDEAS?
 
+//set status codes to variable for DRY CODE
 
+//clean up code: move variable to top, remove/set comments appropriately
+
+//check other endpoints for no login
