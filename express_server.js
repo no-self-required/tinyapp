@@ -56,6 +56,7 @@ app.get("/urls/new", (req, res) => {
   const templateVars = { 
     user: userDatabase[req.session.user_id],
   };
+  res.render("urls_new", templateVars);
 });
 
 app.get('/urls', (req, res) => {
@@ -68,7 +69,7 @@ app.get('/urls', (req, res) => {
   };
   res.render('urls_index', templateVars);
 });
-
+//check
 app.post("/urls", (req, res) => {
   const userCookie = req.session["user_id"]
   const email = userDatabase[userCookie].email;
@@ -151,7 +152,7 @@ app.post('/urls/:shortURL', (req, res) => {
   if(!userCookie) {
     return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
   }
-  else if (req.body.longURL === '' || !(req.body.longURL).includes('.com')) {
+  else if (req.body.longURL === '') {
     return res.send("Please enter a valid URL")
   }
   else if (!(req.body.longURL).includes('http')) {
@@ -173,11 +174,13 @@ app.post('/login', (req, res) => {
   const id = userIDobj.id
   const reqEmail = userIDobj.email
 
-  const pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
   if (userIDobj === false || !password) {
     return res.status(403).send("Invalid email or password");
   }
-  else if (pwCheck) {
+
+  const pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
+
+  if (pwCheck) {
     req.session.user_id = id;
     req.session.user_email = reqEmail
     return res.redirect('/urls');
@@ -216,19 +219,23 @@ app.get('/register', (req, res) => {
 
 app.post('/register', (req, res) => {
   const hash = bcrypt.hashSync(req.body.password, salt);
-  const userObj = createNewUser(userDatabase, userObject)
-  const userID = userObj.id;
+  
   if (req.body.email === '' || req.body.password === '') {
     return res.status(400).send("Cannot leave email or password empty");   
   }
   else if (findUser(userDatabase, req.body.email)) {
     return res.status(400).send("Email in use");  
   }
+
   const userObject = {
     id: generateRandomString(),
     email: req.body.email,
     hashedPw: hash
   }
+
+  const userObj = createNewUser(userDatabase, userObject)
+  const userID = userObj.id;
+
   if (userObj) {
     userDatabase[userID] = userObj
     req.session.user_id = userID;
@@ -237,7 +244,6 @@ app.post('/register', (req, res) => {
   res.redirect("/register")
 })
 
-//function that generates random shortURL id
 function generateRandomString() {
   let generated = [];
   let stringy = 'abcdefghijklmnopqrtuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -249,5 +255,4 @@ function generateRandomString() {
   return generated.join('')
 }
 
-//remove/set comments appropriately
 
