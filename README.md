@@ -5,11 +5,13 @@ TinyApp is a full stack web application built with Node and Express that allows 
 Users can create, edit and shorten URLs. Users can access a database of their URLs and share them.
 
 ## Final Product
-
+URLs directory
 ![URLs directory](https://raw.githubusercontent.com/no-self-required/tinyapp/master/docs/urls-page.png)
 
+Edit a URL
 ![Edit a URL](https://raw.githubusercontent.com/no-self-required/tinyapp/master/docs/urls-edit.png)
 
+Create a URL
 ![Create a URL](https://raw.githubusercontent.com/no-self-required/tinyapp/master/docs/url-create.png)
 
 ## Dependencies
