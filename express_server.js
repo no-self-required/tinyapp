@@ -8,9 +8,6 @@ const bcrypt = require('bcrypt');
 const salt = bcrypt.genSaltSync(10)
 const {createNewUser, findUser, urlsForUser} = require("./helpers/helpers")
 
-const noLogin403 = res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
-const invalid403 = res.status(403).send("Invalid email or password");
-
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(methodOverride('_method'));
 app.use(cookieSession({
@@ -101,7 +98,7 @@ app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
 
   if(!userCookie) {
-    return noLogin403
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
   } 
   else if (!urlDatabase[shortURL]) {
     return res.status(404).send("This short URL does not exist"); 
@@ -123,7 +120,7 @@ app.get("/u/:shortURL", (req, res) => {
   const userCookie = req.session["user_id"]
   const shortURL = req.params.shortURL;
   if(!userCookie) {
-    return noLogin403
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
   }  
   else if (!urlDatabase[shortURL]) {
     return res.status(404).send("This short URL does not exist");
@@ -152,7 +149,7 @@ app.post('/urls/:shortURL', (req, res) => {
   const urlId = req.params.shortURL;
   const longURL = req.body.longURL
   if(!userCookie) {
-    return noLogin403
+    return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
   }
   else if (req.body.longURL === '' || !(req.body.longURL).includes('.com')) {
     return res.send("Please enter a valid URL")
@@ -172,19 +169,20 @@ app.post('/urls/:shortURL', (req, res) => {
 app.post('/login', (req, res) => { 
   const email = req.body.email;
   const password = req.body.password
+  const userIDobj = findUser(userDatabase, email);
   const id = userIDobj.id
   const reqEmail = userIDobj.email
-  const userIDobj = findUser(userDatabase, email);
+
   const pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
   if (userIDobj === false || !password) {
-    return invalid403  
+    return res.status(403).send("Invalid email or password");
   }
   else if (pwCheck) {
     req.session.user_id = id;
     req.session.user_email = reqEmail
     return res.redirect('/urls');
   }
-  return invalid403
+  return res.status(403).send("Invalid email or password");
 })
 
 app.get('/login', (req, res) => {
