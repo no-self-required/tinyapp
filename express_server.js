@@ -117,16 +117,19 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
+//redirecxts 
+
 app.get("/u/:shortURL", (req, res) => {
-  const userCookie = req.session["user_id"]
+  const userCookie = req.session["user_id"];
   const shortURL = req.params.shortURL;
+
   if(!userCookie) {
     return res.status(403).send("<html><title>No Login</title><body>Please <a href='/login'> login </a> or <a href='/register'>register</a> to view associated URLs</body></html");
   }  
   else if (!urlDatabase[shortURL]) {
     return res.status(404).send("This short URL does not exist");
   }
-  res.redirect(urlDatabase[shortURL]);
+  res.redirect(urlDatabase[shortURL].longURL);
 });
 
 // DELETE A URL
