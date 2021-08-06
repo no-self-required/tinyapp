@@ -1,17 +1,12 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 const bodyParser = require("body-parser");
-
-// const cookie_parser=require('cookie-parser')
 const cookieSession = require('cookie-session')
-
-const {createNewUser, findUser, urlsForUser} = require("./helpers/helpers")
 const bcrypt = require('bcrypt');
+const {createNewUser, findUser, urlsForUser} = require("./helpers/helpers")
 
 app.use(bodyParser.urlencoded({extended: true}));
-// app.use(cookie_parser());
-
 app.use(cookieSession({
   name: 'session',
   keys: ['b33pb00pb0p'],
@@ -32,7 +27,7 @@ const urlDatabase = {
 
 const pass1 = "yoyoyo";
 const hash = bcrypt.hashSync(pass1, 10);
-
+//should database be empty?
 const userDatabase = {
   "rT4yp1": {
     id: "rT4yp1",
@@ -41,9 +36,9 @@ const userDatabase = {
   },
 };
 
-// app.get("/", (req, res) => {
-//   res.send("Hello!");
-// });
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
+});
 
 app.get("/urls/new", (req, res) => {
   let userCookie = req.session["user_id"]
@@ -74,6 +69,7 @@ app.get('/urls', (req, res) => {
 
 // If the user is logged in but does not own the URL with the given id the app should return HTML with a relevant error message.
 //^^ must implement still 
+
 app.post("/urls", (req, res) => {
   if (req.body.longURL === '') {
     res.send("Please enter a valid URL")
@@ -94,8 +90,10 @@ app.post("/urls", (req, res) => {
     userID: req.session["user_id"]
   }
   res.redirect(`/urls/${shortUrl}`);
+  return
 });
 
+//should I remove?
 app.get("/noLogin", (req, res) => {
   const templateVars = {
     user: userDatabase[req.session.user_id],
@@ -108,11 +106,11 @@ app.get("/urls/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
-    // *** 
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
     res.status(404).send("This short URL does not exist");
+    return
   }
   const templateVars = {
     user: userDatabase[req.session.user_id],
@@ -122,10 +120,7 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
-});
-
+//relevant?
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
@@ -134,7 +129,7 @@ app.get("/u/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
-    // *** 
+    return
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
@@ -174,7 +169,7 @@ app.post('/urls/:shortURL', (req, res) => {
     urlDatabase[urlId].longURL = longURL
   }
   //redirects to the same page with updated url
-  res.redirect(`/urls/${urlId}`);
+  res.redirect('/urls');
 })
 
 app.post('/login', (req, res) => { 
@@ -200,6 +195,15 @@ app.post('/login', (req, res) => {
   res.status(403).send("Invalid email or password");
 })
 
+app.get('/login', (req, res) => {
+  const templateVars = {
+    user: userDatabase[req.session.user_id],
+    email: req.body.email,
+    password: req.body.password
+  }
+  res.render('login', templateVars)
+})
+
 app.post('/logout', (req, res) => {
   req.session = null;
   res.redirect('/urls');
@@ -207,6 +211,11 @@ app.post('/logout', (req, res) => {
 })
 
 app.get('/register', (req, res) => {
+  let userCookie = req.session["user_id"]
+  if(userCookie) {
+    res.redirect('/urls')
+    return
+  }
   const templateVars = {
     user: userDatabase[req.session.user_id]
   }
@@ -216,9 +225,11 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
   if (req.body.email === '' || req.body.password === '') {
     res.status(400).send("Cannot leave email or password empty");
+    return
   }
   else if (findUser(userDatabase, req.body.email)) {
     res.status(400).send("Email in use");
+    return
   }
 
   const salt = bcrypt.genSaltSync(10)
@@ -242,16 +253,6 @@ app.post('/register', (req, res) => {
   res.redirect("/register")
 })
 
-//password? should be hashedPw??
-app.get('/login', (req, res) => {
-  const templateVars = {
-    user: userDatabase[req.session.user_id],
-    email: req.body.email,
-    password: req.body.password
-  }
-  res.render('login', templateVars)
-})
-
 //function that generates random shortURL id
 function generateRandomString() {
   let generated = [];
@@ -266,3 +267,10 @@ function generateRandomString() {
 
 
 //need to make log in and register button disappear after log in
+
+//noLogin  ejs? to remove or not?
+
+//GET /urls/:id
+//if user is logged it but does not own the URL with the given ID: returns HTML with a relevant error message
+
+
