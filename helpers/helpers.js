@@ -8,7 +8,6 @@ const createNewUser = (userDatabase, userObject) => {
 }
 
 const findUser = (userDatabase, email) => {
-  // const user = userDatabase[email] ? userDatabase[email] : {}
   for (let user in userDatabase) {
     if (userDatabase[user].email === email) {
       return userDatabase[user]
@@ -17,17 +16,16 @@ const findUser = (userDatabase, email) => {
   return false
 }
 
-const checkLogin = (userDatabase, email, password) => {
-  // const user = userDatabase[email] ? userDatabase[email] : {}
-  for (let user in userDatabase) {
-    if (userDatabase[user].email === email && userDatabase[user].password === password) {
-      return userDatabase[user]
-    }
-  }
-  return false
-}
+// const checkLogin = (userDatabase, email, password) => {
+//   // const user = userDatabase[email] ? userDatabase[email] : {}
+//   for (let user in userDatabase) {
+//     if (userDatabase[user].email === email && userDatabase[user].password === password) {
+//       return userDatabase[user]
+//     }
+//   }
+//   return false
+// }
 
-//id = cookie id?
 const urlsForUser = (urlDatabase, id) => {
   let urlObjects = {}
   for (let urls in urlDatabase) {
@@ -38,5 +36,5 @@ const urlsForUser = (urlDatabase, id) => {
   return urlObjects
 }
 
-module.exports = { createNewUser, findUser, checkLogin, urlsForUser }
+module.exports = { createNewUser, findUser, urlsForUser }
 

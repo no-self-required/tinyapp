@@ -45,13 +45,12 @@ const userDatabase = {
 //   res.send("Hello!");
 // });
 
-//check if user_id cookies
-
 app.get("/urls/new", (req, res) => {
   let userCookie = req.session["user_id"]
   
   if(!userCookie) {
     res.redirect('/login') //res status send (<html>) fix later instead of noLogin ejs page
+    return
   }
   const templateVars = { 
     user: userDatabase[req.session.user_id],
@@ -63,12 +62,11 @@ app.get('/urls', (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
+    return
   }
-  //compare urlDatabase ids with userIds < <<
   let urlsToShow = urlsForUser(urlDatabase, userCookie)
   const templateVars = { 
     user: userDatabase[userCookie],
-    //*** 
     urls: urlsToShow
   };
   res.render('urls_index', templateVars);
@@ -77,15 +75,20 @@ app.get('/urls', (req, res) => {
 // If the user is logged in but does not own the URL with the given id the app should return HTML with a relevant error message.
 //^^ must implement still 
 app.post("/urls", (req, res) => {
-  //^^^
-  //"Only Registered Users Can Shorten URLs" curl command
+  if (req.body.longURL === '') {
+    res.send("Please enter a valid URL")
+  }
+
+  if (!(req.body.longURL).includes('http')) {
+    req.body.longURL = 'http://' + req.body.longURL;
+  }
 
   let idCheck = findUser(userDatabase, req.session.user_email)
   if (idCheck === false) {
     res.status(403).send("You must log in to access");
+    return
   }
   const shortUrl = generateRandomString()
-  // **** //
   urlDatabase[shortUrl] = {
     longURL: req.body.longURL,
     userID: req.session["user_id"]
@@ -98,12 +101,14 @@ app.get("/noLogin", (req, res) => {
     user: userDatabase[req.session.user_id],
   };
   res.render('noLogin', templateVars)
+  return
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
+    // *** 
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
@@ -129,6 +134,7 @@ app.get("/u/:shortURL", (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
     res.redirect('/noLogin')
+    // *** 
   }
   const shortURL = req.params.shortURL;
   if (!urlDatabase[shortURL]) {
@@ -138,7 +144,7 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 // DELETE A URL
-// >>>>>>   how to check if shortURL is owned by loggin in user //if urlId = ???
+
 app.post('/urls/:shortURL/delete', (req, res) => {
   let userCookie = req.session["user_id"]
   //extract the id
@@ -152,7 +158,7 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 })
 
 //UPDATE URL IN DATABASE
-//>>>>>>
+
 app.post('/urls/:shortURL', (req, res) => {
   let userCookie = req.session["user_id"]
   if(!userCookie) {
@@ -176,26 +182,28 @@ app.post('/login', (req, res) => {
   const password = req.body.password
 
   let userIDobj = findUser(userDatabase, email);
-  if (!userIDobj) {
+  if (userIDobj === false || !password) {
     res.status(403).send("Invalid email or password");
+    return
   }
+
   let id = userIDobj.id
   let reqEmail = userIDobj.email
-  console.log('CHECK: ', userDatabase[id].hashedPw)
+
   let pwCheck = bcrypt.compareSync(password, userDatabase[id].hashedPw)
   if (pwCheck) {
-    // res.cookie('user_id', id);
     req.session.user_id = id;
     req.session.user_email = reqEmail
     res.redirect('/urls');
+    return
   }
   res.status(403).send("Invalid email or password");
-  return
 })
 
 app.post('/logout', (req, res) => {
   req.session = null;
   res.redirect('/urls');
+  return
 })
 
 app.get('/register', (req, res) => {
@@ -229,6 +237,7 @@ app.post('/register', (req, res) => {
     userDatabase[userID] = userObj
     req.session.user_id = userID;
     res.redirect('/urls')
+    return
   }
   res.redirect("/register")
 })
@@ -257,10 +266,3 @@ function generateRandomString() {
 
 
 //need to make log in and register button disappear after log in
-//Style fonts/buttons and format login/register templates
-//Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client. After login
-// LINE 70
-
-
-//Create new url: catch edge cases like: empty url, no http://
-//ShortURL hyperlink: should go to longurl site?
