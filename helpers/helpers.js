@@ -16,16 +16,6 @@ const findUser = (userDatabase, email) => {
   return false
 }
 
-// const checkLogin = (userDatabase, email, password) => {
-//   // const user = userDatabase[email] ? userDatabase[email] : {}
-//   for (let user in userDatabase) {
-//     if (userDatabase[user].email === email && userDatabase[user].password === password) {
-//       return userDatabase[user]
-//     }
-//   }
-//   return false
-// }
-
 const urlsForUser = (urlDatabase, id) => {
   let urlObjects = {}
   for (let urls in urlDatabase) {
